@@ -116,10 +116,12 @@ cal.sh
 aaa
 cx.sh
 
-NAS-Bench-*-v1_0.pth
+NAS-Bench-*-v1_0-*.pth
 lib/NAS-Bench-*-v1_0.pth
 others/TF
 scripts-search/l2s-algos
 TEMP-L.sh
 
 .nfs00*
+cifar-10
+cifar-100

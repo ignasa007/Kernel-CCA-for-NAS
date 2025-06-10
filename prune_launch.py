@@ -3,12 +3,12 @@ import time
 import argparse
 
 # TODO please configure TORCH_HOME and data_paths before running
-TORCH_HOME = "/ssd1/chenwy"  # Path that contains the nas-bench-201 database. If you only want to run on NASNET (i.e. DARTS) search space, then just leave it empty
+TORCH_HOME = "."  # Path that contains the nas-bench-201 database. If you only want to run on NASNET (i.e. DARTS) search space, then just leave it empty
 data_paths = {
-    "cifar10": "/ssd1/cifar.python",
-    "cifar100": "/ssd1/cifar.python",
-    "ImageNet16-120": "/ssd1/ImageNet16",
-    "imagenet-1k": "/ssd2/chenwy/imagenet_final",
+    "cifar10": "./cifar-10",
+    "cifar100": "./cifar-100",
+    "ImageNet16-120": ".",
+    "imagenet-1k": "./imagenet-1k",
 }
 
 
@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser("TENAS_launch")
 parser.add_argument('--gpu', default=0, type=int, help='use gpu with cuda number')
 parser.add_argument('--space', default='nas-bench-201', type=str, choices=['nas-bench-201', 'darts'], help='which nas search space to use')
 parser.add_argument('--dataset', default='cifar100', type=str, choices=['cifar10', 'cifar100', 'ImageNet16-120', 'imagenet-1k'], help='Choose between cifar10/100/ImageNet16-120/imagenet-1k')
+parser.add_argument('--use_kcca', action='store_true', help='whether to use kcca or original implementation')
 parser.add_argument('--seed', default=0, type=int, help='manual seed')
 args = parser.parse_args()
 
@@ -54,6 +55,7 @@ core_cmd = "CUDA_VISIBLE_DEVICES={gpuid} OMP_NUM_THREADS=4 python ./prune_tenas.
 --search_space_name {space} \
 --super_type {super_type} \
 --arch_nas_dataset {TORCH_HOME}/NAS-Bench-201-v1_0-e61699.pth \
+{use_kcca} \
 --track_running_stats 1 \
 --workers 0 --rand_seed {seed} \
 --timestamp {timestamp} \
@@ -71,6 +73,7 @@ core_cmd = "CUDA_VISIBLE_DEVICES={gpuid} OMP_NUM_THREADS=4 python ./prune_tenas.
     TORCH_HOME=TORCH_HOME,
     space=space,
     super_type=super_type,
+    use_kcca=('--use_kcca' if args.use_kcca else ''),
     seed=args.seed,
     timestamp=timestamp,
     precision=precision,

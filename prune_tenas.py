@@ -64,7 +64,7 @@ def round_to(number, precision, eps=1e-8):
         return sign * round(number*10**(-power), precision) * 10**(power)
 
 
-def prune_func_rank(xargs, arch_parameters, model_config, model_config_thin, loader, lrc_model, search_space, precision=10, prune_number=1):
+def prune_func_rank(xargs, arch_parameters, model_config, model_config_thin, loader, lrc_model, search_space, precision=10, prune_number=1, use_kcca=False):
     # arch_parameters now has three dim: cell_type, edge, op
     network_origin = get_cell_based_tiny_net(model_config).cuda().train()
     init_model(network_origin, xargs.init)
@@ -108,7 +108,7 @@ def prune_func_rank(xargs, arch_parameters, model_config, model_config_thin, loa
                             param.data.copy_(param_ori.data)
                         network.set_alphas(_arch_param)
                         # NTK cond TODO #########
-                        ntk_origin, ntk = get_ntk_n(loader, [network_origin, network], recalbn=0, train_mode=True, num_batch=1)
+                        ntk_origin, ntk = get_ntk_n(loader, [network_origin, network], recalbn=0, train_mode=True, num_batch=1, use_kcca=use_kcca)
                         # ####################
                         ntk_delta.append(round((ntk_origin - ntk) / ntk_origin, precision))  # higher the more likely to be prunned
                     ntk_all.append([np.mean(ntk_delta), (idx_ct, idx_edge, idx_op)])  # change of ntk
@@ -186,7 +186,7 @@ def prune_func_rank(xargs, arch_parameters, model_config, model_config_thin, loa
     return arch_parameters, choices_edges
 
 
-def prune_func_rank_group(xargs, arch_parameters, model_config, model_config_thin, loader, lrc_model, search_space, edge_groups=[(0, 2), (2, 5), (5, 9), (9, 14)], num_per_group=2, precision=10):
+def prune_func_rank_group(xargs, arch_parameters, model_config, model_config_thin, loader, lrc_model, search_space, edge_groups=[(0, 2), (2, 5), (5, 9), (9, 14)], num_per_group=2, precision=10, use_kcca=False):
     # arch_parameters now has three dim: cell_type, edge, op
     network_origin = get_cell_based_tiny_net(model_config).cuda().train()
     init_model(network_origin, xargs.init)
@@ -234,7 +234,7 @@ def prune_func_rank_group(xargs, arch_parameters, model_config, model_config_thi
                                 param.data.copy_(param_ori.data)
                             network.set_alphas(_arch_param)
                             # NTK cond TODO #########
-                            ntk_origin, ntk = get_ntk_n(loader, [network_origin, network], recalbn=0, train_mode=True, num_batch=1)
+                            ntk_origin, ntk = get_ntk_n(loader, [network_origin, network], recalbn=0, train_mode=True, num_batch=1, use_kcca=use_kcca)
                             # ####################
                             ntk_delta.append(round((ntk_origin - ntk) / ntk_origin, precision))
                         ntk_all.append([np.mean(ntk_delta), (idx_ct, idx_edge, idx_op)])  # change of ntk
@@ -426,8 +426,8 @@ def main(xargs):
 
         arch_parameters, op_pruned = prune_func_rank(xargs, arch_parameters, model_config, model_config_thin, train_loader, lrc_model, search_space,
                                                      precision=xargs.precision,
-                                                     prune_number=xargs.prune_number
-                                                     )
+                                                     prune_number=xargs.prune_number,
+                                                     use_kcca=xargs.use_kcca)
         # rebuild supernet
         network = get_cell_based_tiny_net(model_config)
         network = network.cuda()
@@ -445,7 +445,7 @@ def main(xargs):
         arch_parameters = prune_func_rank_group(xargs, arch_parameters, model_config, model_config_thin, train_loader, lrc_model, search_space,
                                                 edge_groups=[(0, 2), (2, 5), (5, 9), (9, 14)], num_per_group=2,
                                                 precision=xargs.precision,
-                                                )
+                                                use_kcca=xargs.use_kcca)
         network = get_cell_based_tiny_net(model_config)
         network = network.cuda()
         network.set_alphas(arch_parameters)
@@ -475,6 +475,7 @@ if __name__ == '__main__':
     parser.add_argument('--track_running_stats', type=int, choices=[0, 1], help='Whether use track_running_stats or not in the BN layer.')
     parser.add_argument('--workers', type=int, default=0, help='number of data loading workers (default: 0)')
     parser.add_argument('--batch_size', type=int, default=16, help='batch size for ntk')
+    parser.add_argument('--use_kcca', action='store_true', help='whether to use kcca or original implementation')
     parser.add_argument('--save_dir', type=str, help='Folder to save checkpoints and log.')
     parser.add_argument('--arch_nas_dataset', type=str, help='The path to load the nas-bench-201 architecture dataset (tiny-nas-benchmark).')
     parser.add_argument('--rand_seed', type=int, help='manual seed')
